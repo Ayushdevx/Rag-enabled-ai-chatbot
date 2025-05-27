@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import './App.css';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'http://localhost:5001/api';
 
 function App() {
   // Enhanced state management
@@ -32,6 +32,7 @@ function App() {
 
   // UI state
   const [showSettings, setShowSettings] = useState(false);
+  const [showEndSession, setShowEndSession] = useState(false);
   const [theme, setTheme] = useState('dark');
   const [notifications, setNotifications] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -172,7 +173,7 @@ function App() {
     // Add welcome message with user details
     const welcomeMessage = {
       role: 'assistant',
-      content: `Hello ${formData.name}! 👋 I've recorded your session details. How can I assist you today?`,
+      content: `Hello ${formData.name}! 👋 Welcome to your AI Assistant session. I'm here to help you with various tasks including:\n\n• General questions and conversations\n• Document analysis (upload files to get started)\n• Image analysis and OCR\n• Voice interactions\n\nHow can I assist you today?`,
       timestamp: new Date().toISOString(),
       sessionStart: true
     };
@@ -497,6 +498,148 @@ function App() {
     </div>
   );
 
+  // Settings Panel Component
+  const SettingsPanel = () => (
+    <div className="settings-panel">
+      <div className="settings-header">
+        <h3>⚙️ Settings</h3>
+        <button onClick={() => setShowSettings(false)} className="close-btn">×</button>
+      </div>
+      <div className="settings-content">
+        <div className="setting-group">
+          <label>🎨 Theme</label>
+          <select value={theme} onChange={(e) => setTheme(e.target.value)}>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </div>
+
+        <div className="setting-group">
+          <label>🔊 Text-to-Speech</label>
+          <div className="toggle-switch">
+            <input
+              type="checkbox"
+              id="tts-toggle"
+              checked={isSpeaking}
+              onChange={(e) => setIsSpeaking(e.target.checked)}
+            />
+            <label htmlFor="tts-toggle" className="toggle-label">
+              <span className="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div className="setting-group">
+          <label>📊 Session Info</label>
+          <div className="session-info">
+            <div className="info-item">
+              <span className="info-label">User:</span>
+              <span className="info-value">{user?.name}</span>
+            </div>
+            <div className="info-item">
+              <span className="info-label">Email:</span>
+              <span className="info-value">{user?.email}</span>
+            </div>
+            <div className="info-item">
+              <span className="info-label">Messages:</span>
+              <span className="info-value">{messages.filter(m => m.role === 'user').length}</span>
+            </div>
+            <div className="info-item">
+              <span className="info-label">Files:</span>
+              <span className="info-value">{files.length}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="setting-group">
+          <label>🗑️ Actions</label>
+          <div className="action-buttons">
+            <button
+              onClick={() => {
+                if (window.confirm('Clear all messages? This cannot be undone.')) {
+                  setMessages([]);
+                  addNotification('Chat history cleared', 'info');
+                }
+              }}
+              className="btn-secondary"
+            >
+              Clear Chat
+            </button>
+            <button
+              onClick={() => {
+                if (window.confirm('Reset session? This will clear all data.')) {
+                  setMessages([]);
+                  setFiles([]);
+                  setChatId(null);
+                  setSessionStarted(false);
+                  setShowUserForm(true);
+                  addNotification('Session reset', 'info');
+                }
+              }}
+              className="btn-warning"
+            >
+              Reset Session
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // End Session Modal Component
+  const EndSessionModal = () => (
+    <div className="modal-overlay">
+      <div className="end-session-modal">
+        <div className="modal-header">
+          <h3>📋 End Session</h3>
+          <button onClick={() => setShowEndSession(false)} className="close-btn">×</button>
+        </div>
+        <div className="modal-content">
+          <p>Are you sure you want to end this session?</p>
+          <div className="session-summary">
+            <h4>Session Summary:</h4>
+            <div className="summary-stats">
+              <div className="stat-item">
+                <span className="stat-icon">💬</span>
+                <span className="stat-label">Messages:</span>
+                <span className="stat-value">{messages.filter(m => m.role === 'user').length}</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-icon">📁</span>
+                <span className="stat-label">Files:</span>
+                <span className="stat-value">{files.length}</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-icon">⏱️</span>
+                <span className="stat-label">Duration:</span>
+                <span className="stat-value">
+                  {sessionStarted ? Math.round((Date.now() - new Date(messages.find(m => m.sessionStart)?.timestamp || Date.now()).getTime()) / 60000) : 0} min
+                </span>
+              </div>
+            </div>
+          </div>
+          <p className="email-note">
+            📧 A detailed summary will be sent to: <strong>{user?.email}</strong>
+          </p>
+        </div>
+        <div className="modal-actions">
+          <button onClick={() => setShowEndSession(false)} className="btn-secondary">
+            Cancel
+          </button>
+          <button
+            onClick={() => {
+              endSession();
+              setShowEndSession(false);
+            }}
+            className="btn-primary"
+          >
+            End Session
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   // Notification Component
   const NotificationContainer = () => (
     <div className="notifications">
@@ -514,7 +657,9 @@ function App() {
   return (
     <div className={`app ${theme}`}>
       {showUserForm && <UserForm />}
+      {showEndSession && <EndSessionModal />}
       <NotificationContainer />
+      {showSettings && <SettingsPanel />}
 
       <header className="header">
         <div className="header-left">
@@ -529,7 +674,7 @@ function App() {
                 ⚙️
               </button>
               {sessionStarted && (
-                <button onClick={endSession} className="end-session-btn">
+                <button onClick={() => setShowEndSession(true)} className="end-session-btn">
                   📋 End Session
                 </button>
               )}

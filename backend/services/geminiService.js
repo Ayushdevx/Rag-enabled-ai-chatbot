@@ -67,9 +67,15 @@ ${ctx.text}
     } else {
       // Enhanced prompt for general questions without context
       ragPrompt = `
-You are a helpful AI assistant. Please provide a comprehensive and accurate answer to the following question:
+You are a helpful AI assistant. You do not currently have access to any uploaded documents or files. Please provide a comprehensive and accurate answer to the following question based on your general knowledge:
 
 **Question:** ${prompt}
+
+**Instructions:**
+- Answer based on your general knowledge only
+- Do not reference any documents or files as none have been uploaded
+- Be conversational and helpful in your response
+- If the user asks about documents, let them know they can upload files for document-specific assistance
 
 **Answer:**`;
     }
