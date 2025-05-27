@@ -23,7 +23,7 @@ if (config.mongoURI) {
  */
 router.post('/message', async (req, res) => {
   try {
-    const { userId, message, chatId } = req.body;
+    const { userId, message, chatId, hasImage, imageData, imageName, sessionData } = req.body;
 
     if (!userId || !message) {
       return res.status(400).json({ error: 'User ID and message are required' });
@@ -282,6 +282,81 @@ router.post('/feedback', async (req, res) => {
   } catch (error) {
     console.error('Error submitting feedback:', error);
     return res.status(500).json({ error: 'Error submitting feedback' });
+  }
+});
+
+/**
+ * End chat session and generate summary
+ * POST /api/chat/end-session
+ */
+router.post('/end-session', async (req, res) => {
+  try {
+    const { chatId, userId, sessionData } = req.body;
+
+    if (!chatId || !userId) {
+      return res.status(400).json({ error: 'Chat ID and User ID are required' });
+    }
+
+    let chat;
+    let messages = [];
+
+    if (config.mongoURI && Chat) {
+      // Use MongoDB
+      chat = await Chat.findById(chatId);
+      if (!chat) {
+        return res.status(404).json({ error: 'Chat not found' });
+      }
+      messages = chat.messages;
+    } else {
+      // Use in-memory storage
+      chat = inMemoryChats.find(c => c.id === parseInt(chatId));
+      if (!chat) {
+        return res.status(404).json({ error: 'Chat not found' });
+      }
+      messages = chat.messages;
+    }
+
+    // Generate chat summary
+    const userMessages = messages.filter(m => m.role === 'user').length;
+    const assistantMessages = messages.filter(m => m.role === 'assistant').length;
+    const sessionDuration = new Date() - new Date(messages[0].timestamp);
+    const durationMinutes = Math.round(sessionDuration / (1000 * 60));
+
+    const summary = `
+Chat Session Summary for ${sessionData?.name || 'User'}
+
+Session Details:
+- Duration: ${durationMinutes} minutes
+- Total Messages: ${messages.length}
+- User Questions: ${userMessages}
+- AI Responses: ${assistantMessages}
+- Session Purpose: ${sessionData?.purpose || 'Not specified'}
+
+Key Topics Discussed:
+${messages.filter(m => m.role === 'user').slice(0, 5).map((m, i) => `${i + 1}. ${m.content.substring(0, 100)}...`).join('\n')}
+
+Thank you for using our Enhanced AI Assistant !
+    `.trim();
+
+    // In a real application, you would send an email here
+    // For now, we'll just return the summary
+    console.log(`Session ended for user: ${sessionData?.email || userId}`);
+    console.log('Summary:', summary);
+
+    return res.status(200).json({
+      success: true,
+      summary,
+      sessionStats: {
+        duration: durationMinutes,
+        totalMessages: messages.length,
+        userMessages,
+        assistantMessages
+      }
+    });
+
+  } catch (error) {
+    console.error('Error ending session:', error);
+    return res.status(500).json({ error: 'Error ending session' });
   }
 });
 

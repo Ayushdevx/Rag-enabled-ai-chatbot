@@ -58,7 +58,7 @@ function App() {
     setMessages([{
       id: 1,
       role: 'assistant',
-      content: "🤖 Welcome to your Enhanced AI Assistant powered by Gemini 2.0 Flash! I can help you with:\n\n📄 Document analysis and Q&A\n🖼️ Image analysis and OCR\n🎤 Voice conversations\n📧 Session summaries via email\n\nTo get started, please provide some basic information about yourself.",
+      content: "🤖 Welcome to your Enhanced AI Assistant by RealIt Solutions! I can help you with:\n\n📄 Document analysis and Q&A\n🖼️ Image analysis and OCR\n🎤 Voice conversations\n📧 Session summaries via email\n\nTo get started, please provide some basic information about yourself.",
       timestamp: new Date().toISOString(),
       isGreeting: true,
       features: [
@@ -499,7 +499,7 @@ function App() {
       <header className="header">
         <div className="header-left">
           <h1>🤖 Enhanced AI Assistant</h1>
-          <span className="powered-by">Powered by Gemini 2.0 Flash</span>
+          <span className="powered-by">Powered by RealIt Solutions</span>
         </div>
         <div className="header-right">
           {user && (

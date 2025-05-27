@@ -32,8 +32,10 @@ function App() {
 
   // UI state
   const [showSettings, setShowSettings] = useState(false);
-  const [theme, setTheme] = useState('light');
+  const [theme, setTheme] = useState('dark');
   const [notifications, setNotifications] = useState([]);
+  const [isTyping, setIsTyping] = useState(false);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
   // Refs
   const fileInputRef = useRef(null);
@@ -58,7 +60,7 @@ function App() {
     setMessages([{
       id: 1,
       role: 'assistant',
-      content: "🤖 Welcome to your Enhanced AI Assistant powered by Gemini 2.0 Flash! I can help you with:\n\n📄 Document analysis and Q&A\n🖼️ Image analysis and OCR\n🎤 Voice conversations\n📧 Session summaries via email\n\nTo get started, please provide some basic information about yourself.",
+      content: "🤖 Welcome to your Enhanced AI Assistant powered by RealIt solutions! I can help you with:\n\n📄 Document analysis and Q&A\n🖼️ Image analysis and OCR\n🎤 Voice conversations\n📧 Session summaries via email\n\nTo get started, please provide some basic information about yourself.",
       timestamp: new Date().toISOString(),
       isGreeting: true,
       features: [
@@ -265,6 +267,16 @@ function App() {
     setSelectedImage(null);
     setImagePreview(null);
     setIsLoading(true);
+    setIsTyping(true);
+
+    // Add typing indicator
+    const typingMessage = {
+      role: 'assistant',
+      content: '',
+      timestamp: new Date().toISOString(),
+      isTyping: true
+    };
+    setMessages(prev => [...prev, typingMessage]);
 
     try {
       // Prepare request data
@@ -287,15 +299,18 @@ function App() {
 
       if (!chatId) setChatId(response.data.chatId);
 
-      const assistantMessage = {
-        role: 'assistant',
-        content: response.data.message,
-        timestamp: new Date().toISOString(),
-        sources: response.data.sources,
-        confidence: response.data.confidence
-      };
-
-      setMessages(prev => [...prev, assistantMessage]);
+      // Remove typing indicator and add actual response
+      setMessages(prev => {
+        const withoutTyping = prev.filter(msg => !msg.isTyping);
+        const assistantMessage = {
+          role: 'assistant',
+          content: response.data.message,
+          timestamp: new Date().toISOString(),
+          sources: response.data.sources,
+          confidence: response.data.confidence
+        };
+        return [...withoutTyping, assistantMessage];
+      });
 
       // Text-to-speech if enabled
       if (isSpeaking) {
@@ -306,15 +321,20 @@ function App() {
       console.error('Error sending message:', error);
       addNotification('Error sending message', 'error');
 
-      const errorMessage = {
-        role: 'assistant',
-        content: `❌ Error: ${error.response?.data?.error || error.message}`,
-        timestamp: new Date().toISOString(),
-        isError: true
-      };
-      setMessages(prev => [...prev, errorMessage]);
+      // Remove typing indicator and add error message
+      setMessages(prev => {
+        const withoutTyping = prev.filter(msg => !msg.isTyping);
+        const errorMessage = {
+          role: 'assistant',
+          content: `❌ Error: ${error.response?.data?.error || error.message}`,
+          timestamp: new Date().toISOString(),
+          isError: true
+        };
+        return [...withoutTyping, errorMessage];
+      });
     } finally {
       setIsLoading(false);
+      setIsTyping(false);
     }
   };
 
@@ -499,7 +519,7 @@ function App() {
       <header className="header">
         <div className="header-left">
           <h1>🤖 Enhanced AI Assistant</h1>
-          <span className="powered-by">Powered by Gemini 2.0 Flash</span>
+          <span className="powered-by">Powered by RealIT Solutions</span>
         </div>
         <div className="header-right">
           {user && (
@@ -586,159 +606,184 @@ function App() {
         </div>
 
         <div className="chat-container">
-          <div className="messages" id="messages">
-            {messages.map((message, index) => (
-              <div key={index} className={`message ${message.role}`}>
-                <div className="message-content">
-                  {message.image && (
-                    <div className="message-image">
-                      <img src={message.image} alt={message.imageName} />
-                      <span className="image-name">{message.imageName}</span>
-                    </div>
-                  )}
-
-                  <div className="message-text">
-                    {message.content}
+          <div className="messages-container">
+            <div className="messages" id="messages">
+              {messages.map((message, index) => (
+                <div key={index} className={`message ${message.role} ${message.isGreeting ? 'greeting' : ''} ${message.isTyping ? 'typing-message' : ''}`}>
+                  <div className="message-avatar">
+                    {message.role === 'user' ? (user?.name?.charAt(0) || 'U') : '🤖'}
                   </div>
 
-                  {message.features && (
-                    <div className="feature-list">
-                      {message.features.map((feature, i) => (
-                        <div key={i} className="feature-item">
-                          <span className="feature-icon">{feature.icon}</span>
-                          <span className="feature-text">{feature.text}</span>
+                  <div className="message-bubble">
+                    {message.isTyping ? (
+                      <div className="typing-indicator">
+                        <div className="typing-text">AI is thinking...</div>
+                        <div className="typing-dots">
+                          <span></span>
+                          <span></span>
+                          <span></span>
                         </div>
-                      ))}
-                    </div>
-                  )}
+                      </div>
+                    ) : (
+                      <>
+                        {message.image && (
+                          <div className="message-image">
+                            <img src={message.image} alt={message.imageName} />
+                            <span className="image-name">{message.imageName}</span>
+                          </div>
+                        )}
 
-                  {message.sources && message.sources.length > 0 && (
-                    <div className="message-sources">
-                      <details>
-                        <summary>📚 Sources ({message.sources.length})</summary>
-                        <div className="sources-list">
-                          {message.sources.map((source, i) => (
-                            <div key={i} className="source-item">
-                              <div className="source-text">{source.text}</div>
-                              <div className="source-file">From: {source.fileId}</div>
-                            </div>
-                          ))}
+                        <div className="message-content">
+                          {message.content}
                         </div>
-                      </details>
-                    </div>
-                  )}
+
+                        {message.features && (
+                          <div className="feature-list">
+                            {message.features.map((feature, i) => (
+                              <div key={i} className="feature-item">
+                                <span className="feature-icon">{feature.icon}</span>
+                                <span className="feature-text">{feature.text}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {message.sources && message.sources.length > 0 && (
+                          <div className="message-sources">
+                            <details>
+                              <summary>📚 Sources ({message.sources.length})</summary>
+                              <div className="sources-list">
+                                {message.sources.map((source, i) => (
+                                  <div key={i} className="source-item">
+                                    <div className="source-text">{source.text}</div>
+                                    <div className="source-meta">From: {source.fileId}</div>
+                                  </div>
+                                ))}
+                              </div>
+                            </details>
+                          </div>
+                        )}
+
+                        {!message.isTyping && (
+                          <div className="message-footer">
+                            <span className="message-time">{formatDate(message.timestamp)}</span>
+
+                            {message.role === 'assistant' && !message.isGreeting && !message.isTyping && (
+                              <div className="message-actions">
+                                <button
+                                  onClick={() => handleFeedback(index, 'positive')}
+                                  className={`action-btn ${message.feedback === 'positive' ? 'active' : ''}`}
+                                  title="Good response"
+                                >
+                                  👍
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    const reason = prompt('Please describe what was wrong with this response:');
+                                    if (reason) handleFeedback(index, 'negative', reason);
+                                  }}
+                                  className={`action-btn ${message.feedback === 'negative' ? 'active' : ''}`}
+                                  title="Report incorrect response"
+                                >
+                                  👎
+                                </button>
+                                <button
+                                  onClick={() => speakText(message.content)}
+                                  className="action-btn"
+                                  title="Read aloud"
+                                >
+                                  🔊
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
+              ))}
 
-                <div className="message-footer">
-                  <span className="message-time">{formatDate(message.timestamp)}</span>
-
-                  {message.role === 'assistant' && !message.isGreeting && (
-                    <div className="message-actions">
-                      <button
-                        onClick={() => handleFeedback(index, 'positive')}
-                        className={`feedback-btn ${message.feedback === 'positive' ? 'active' : ''}`}
-                        title="Good response"
-                      >
-                        👍
-                      </button>
-                      <button
-                        onClick={() => {
-                          const reason = prompt('Please describe what was wrong with this response:');
-                          if (reason) handleFeedback(index, 'negative', reason);
-                        }}
-                        className={`feedback-btn ${message.feedback === 'negative' ? 'active' : ''}`}
-                        title="Report incorrect response"
-                      >
-                        👎
-                      </button>
-                      <button
-                        onClick={() => speakText(message.content)}
-                        className="speak-btn"
-                        title="Read aloud"
-                      >
-                        🔊
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-
-            {isLoading && (
-              <div className="message assistant">
-                <div className="typing-indicator">
-                  <span></span><span></span><span></span>
-                </div>
-              </div>
-            )}
-
-            <div ref={messagesEndRef} />
+              <div ref={messagesEndRef} />
+            </div>
           </div>
 
-          <div className="input-container">
+          <div className="input-section">
             {selectedImage && (
               <div className="image-preview">
-                <img src={imagePreview} alt="Selected" />
-                <span>{selectedImage.name}</span>
-                <button onClick={() => { setSelectedImage(null); setImagePreview(null); }}>×</button>
+                <div className="preview-container">
+                  <img src={imagePreview} alt="Selected" />
+                  <div className="preview-info">
+                    <span className="preview-name">{selectedImage.name}</span>
+                    <button
+                      className="preview-remove"
+                      onClick={() => { setSelectedImage(null); setImagePreview(null); }}
+                      title="Remove image"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 
-            <div className="input-area">
-              <textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder={isListening ? "🎤 Listening..." : "Type your message here... (Shift+Enter for new line)"}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendMessage();
-                  }
-                }}
-                disabled={isLoading}
-                className={isListening ? 'listening' : ''}
-              />
-
-              <div className="input-actions">
-                <input
-                  type="file"
-                  ref={imageInputRef}
-                  onChange={handleImageUpload}
-                  accept="image/*"
-                  style={{ display: 'none' }}
+            <div className="input-container">
+              <div className="input-wrapper">
+                <textarea
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder={isListening ? "🎤 Listening..." : "Type your message here... (Shift+Enter for new line)"}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendMessage();
+                    }
+                  }}
+                  disabled={isLoading}
+                  className={`message-input ${isListening ? 'listening' : ''}`}
                 />
 
-                <button
-                  onClick={() => imageInputRef.current?.click()}
-                  className="action-btn"
-                  title="Upload image"
-                >
-                  🖼️
-                </button>
+                <div className="input-actions">
+                  <input
+                    type="file"
+                    ref={imageInputRef}
+                    onChange={handleImageUpload}
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                  />
 
-                <button
-                  onClick={handleVoiceInput}
-                  className={`action-btn ${isListening ? 'active' : ''}`}
-                  title="Voice input"
-                >
-                  🎤
-                </button>
+                  <button
+                    onClick={() => imageInputRef.current?.click()}
+                    className="action-btn"
+                    title="Upload image"
+                  >
+                    🖼️
+                  </button>
 
-                <button
-                  onClick={() => setIsSpeaking(!isSpeaking)}
-                  className={`action-btn ${isSpeaking ? 'active' : ''}`}
-                  title="Toggle text-to-speech"
-                >
-                  🔊
-                </button>
+                  <button
+                    onClick={handleVoiceInput}
+                    className={`action-btn ${isListening ? 'active' : ''}`}
+                    title="Voice input"
+                  >
+                    🎤
+                  </button>
 
-                <button
-                  onClick={handleSendMessage}
-                  disabled={(!input.trim() && !selectedImage) || isLoading}
-                  className="send-btn"
-                >
-                  {isLoading ? '⏳' : '📤'}
-                </button>
+                  <button
+                    onClick={() => setIsSpeaking(!isSpeaking)}
+                    className={`action-btn ${isSpeaking ? 'active' : ''}`}
+                    title="Toggle text-to-speech"
+                  >
+                    🔊
+                  </button>
+
+                  <button
+                    onClick={handleSendMessage}
+                    disabled={(!input.trim() && !selectedImage) || isLoading}
+                    className="send-btn action-btn"
+                  >
+                    {isLoading ? '⏳' : '📤'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
