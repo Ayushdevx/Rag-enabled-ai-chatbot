@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
-import './App.css';
+import './App_Enhanced.css';
 
 const API_URL = 'http://localhost:5000/api';
 
